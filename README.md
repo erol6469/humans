@@ -1,30 +1,37 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.20; // This should be at the top, before any contract or function definitions
+pragma solidity ^0.8.0;
 
-import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
+contract AgriCoopToken {
+    string public name = "AgriCoopToken";
+    string public symbol = "ACT";
+    uint8 public decimals = 18;
+    uint256 public totalSupply;
+    mapping(address => uint256) public balanceOf;
+    address public coopAdmin;
 
-contract HumansToken is ERC20, Ownable  {
-    uint256 private constant TOTAL_SUPPLY = 132_000_000_000 * 10**18;  // 132 milliards de tokens
-    uint256 public constant AIRDROP_AMOUNT = 1000 * 10**18;  // 1000 tokens par airdrop
-    uint256 public airdropSupply;
-    mapping(address => bool) public hasClaimedAirdrop;
+    event Investment(address indexed investor, uint256 amount, string animalId);
+    event Dividend(address indexed investor, uint256 amount);
 
-    constructor() ERC20("Humans", "HMS") Ownable(msg.sender)  {
-        _mint(msg.sender, TOTAL_SUPPLY);
-        airdropSupply = TOTAL_SUPPLY / 10;  // 10% of total supply for airdrop
-    }
-    
-    function claimAirdrop() public {
-        require(!hasClaimedAirdrop[msg.sender], "Airdrop already claimed");
-        require(airdropSupply >= AIRDROP_AMOUNT, "Airdrop supply exhausted");
-        
-        hasClaimedAirdrop[msg.sender] = true;
-        airdropSupply -= AIRDROP_AMOUNT;
-        _transfer(owner(), msg.sender, AIRDROP_AMOUNT);
+    constructor(uint256 _initialSupply) {
+        totalSupply = _initialSupply * 10 ** decimals; // 10B ACT
+        balanceOf[msg.sender] = totalSupply;
+        coopAdmin = msg.sender;
     }
 
-    function remainingAirdropSupply() public view returns (uint256) {
-        return airdropSupply;
+    function invest(address _investor, uint256 _amount, string memory _animalId) public returns (bool) {
+        require(msg.sender == coopAdmin, "Seul l'admin peut enregistrer");
+        require(balanceOf[coopAdmin] >= _amount, "Fonds insuffisants");
+        balanceOf[coopAdmin] -= _amount;
+        balanceOf[_investor] += _amount;
+        emit Investment(_investor, _amount, _animalId);
+        return true;
+    }
+
+    function distributeDividends(address[] memory _investors, uint256[] memory _amounts) public {
+        require(msg.sender == coopAdmin, "Seul l'admin peut distribuer");
+        for (uint256 i = 0; i < _investors.length; i++) {
+            balanceOf[_investors[i]] += _amounts[i];
+            emit Dividend(_investors[i], _amounts[i]);
+        }
     }
 }
